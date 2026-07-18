@@ -743,8 +743,8 @@
         // ----- state -----
         let maps = [];
         let currentIndex = 0;
-        let timerSeconds = 600;
-        let remainingSeconds = 0;
+        let timerSeconds = 600; // 10 minutes default
+        let remainingSeconds = 600; // 10 minutes default
         let timerInterval = null;
         let isPaused = false;
         let isRunning = false;
@@ -841,7 +841,7 @@
                 if (data.maps && data.maps.length > 0) {
                     maps = data.maps;
                     currentIndex = data.currentIndex || 0;
-                    timerSeconds = data.timerSeconds || 600;
+                    timerSeconds = data.timerSeconds || 600; // 10 minutes default
                     remainingSeconds = data.remainingSeconds || timerSeconds;
                     isRunning = data.isRunning || false;
                     isPaused = data.isPaused || false;
@@ -1095,10 +1095,6 @@
                 updatePreview();
                 updateOverlayUrl();
                 saveState();
-                // If timer is running, keep it running
-                if (isRunning) {
-                    // Don't restart, just update display
-                }
             }
         }
 
@@ -1312,11 +1308,9 @@
                 if (running) {
                     isRunning = true;
                     isPaused = false;
-                    // Start the timer immediately
                     startCountdown();
                 } else {
                     // If running=0 or not set, still start the timer
-                    // This ensures OBS overlay always runs
                     if (remainingSeconds <= 0) {
                         remainingSeconds = timerSeconds;
                     }
@@ -1550,8 +1544,8 @@
             if (!loadState()) {
                 maps = [...DEFAULT_MAPS];
                 currentIndex = 0;
-                timerSeconds = 120;
-                remainingSeconds = 120;
+                timerSeconds = 600; // 10 minutes
+                remainingSeconds = 600; // 10 minutes
                 style.bgOpacity = 0;
             }
 
