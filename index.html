@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map Rotation · OBS Overlay</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #0b0e14;
+            color: #eef2f6;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        .app {
+            max-width: 1400px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        /* Overlay-only mode */
+        body.overlay-mode {
+            background: transparent !important;
+            padding: 0 !important;
+            min-height: auto;
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+        }
+        body.overlay-mode .app {
+            max-width: 100%;
+            gap: 0;
+        }
+        body.overlay-mode .controls-card,
+        body.overlay-mode .maps-card,
+        body.overlay-mode .overlay-url-card,
+        body.overlay-mode .style-card {
+            display: none !important;
+        }
+        body.overlay-mode .overlay-preview-card {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            display: block !important;
+        }
+        body.overlay-mode .overlay-preview {
+            border-radius: 16px !important;
+            padding: 12px 24px !important;
+            gap: 20px !important;
+            backdrop-filter: none !important;
+            justify-content: center;
+            min-height: auto;
+            margin: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            width: auto !important;
+        }
+        body.overlay-mode .badge-live {
+            font-size: 0.85rem;
+            padding: 4px 16px;
+            display: inline-block !important;
+        }
+        body.overlay-mode .preview-map {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: inline-block !important;
+        }
+        body.overlay-mode .preview-timer {
+            font-size: 2.2rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            min-width: 100px;
+            text-align: center;
+            display: inline-block !important;
+        }
+        body.overlay-mode .preview-label,
+        body.overlay-mode .small-note,
+        body.overlay-mode .overlay-preview-card > div:first-child {
+            display: none !important;
+        }
+        .badge-live.hidden {
+            display: none !important;
+        }
+        h1 {
+            font-weight: 600;
+            font-size: 2rem;
+            letter-spacing: -0.5px;
+            margin: 0 0 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        h1 small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #8895b0;
+            margin-left: 8px;
+        }
+        .card {
+            background: #181f2b;
+            border-radius: 24px;
+            padding: 22px 26px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            border: 1px solid #2a3344;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .card-header h2 {
+            font-weight: 500;
+            font-size: 1.3rem;
+            margin: 0;
+            color: #c8d2e6;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px 20px;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px 12px;
+            flex-wrap: wrap;
+        }
+        .input-group label {
+            font-size: 0.9rem;
+            font-weight: 450;
+            color: #a4b3ce;
+        }
+        .input-group input {
+            background: #10161f;
+            border: 1px solid #2d3a4f;
+            color: #f0f4fc;
+            padding: 8px 14px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            width: 100px;
+            transition: 0.15s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #5b7cfa;
+            box-shadow: 0 0 0 2px #1f3b7a;
+        }
+        .input-group input[type="number"] {
+            width: 80px;
+        }
+        .input-group input[type="color"] {
+            width: 50px;
+            height: 40px;
+            padding: 2px;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #10161f;
+        }
+        .input-group select {
+            background: #10161f;
+            border: 1px solid #2d3a4f;
+            color: #f0f4fc;
+            padding: 8px 14px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .input-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #3c5cdb;
+        }
+        .input-group input[type="range"] {
+            width: 100px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #2d3a4f;
+            border-radius: 3px;
+            outline: none;
+            padding: 0;
+        }
+        .input-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3c5cdb;
+            cursor: pointer;
+            border: 2px solid #5a7af0;
+        }
+        .input-group input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3c5cdb;
+            cursor: pointer;
+            border: 2px solid #5a7af0;
+        }
+        .btn {
+            background: #2a3650;
+            border: none;
+            color: white;
+            font-weight: 500;
+            padding: 8px 22px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: 0.15s;
+            border: 1px solid #3b4a66;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: #3c5cdb;
+            border-color: #5a7af0;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background: #4f6ef0;
+            border-color: #7b94fa;
+            transform: scale(1.02);
+        }
+        .btn-danger {
+            background: #b13e4b;
+            border-color: #d45a68;
+        }
+        .btn-danger:hover {
+            background: #cf4a5a;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #3f506c;
+        }
+        .btn-outline:hover {
+            background: #253040;
+        }
+        .btn-sm {
+            padding: 4px 14px;
+            font-size: 0.8rem;
+        }
+        .btn-success {
+            background: #1f8b4c;
+            border-color: #2eaa5e;
+        }
+        .btn-success:hover {
+            background: #2aa35a;
+        }
+        .btn-active {
+            background: #5b7cfa;
+            border-color: #7b94fa;
+            color: white;
+            font-weight: 600;
+        }
+        .btn-active:hover {
+            background: #6f8cff;
+            transform: scale(1.02);
+        }
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            margin: 12px 0 8px 0;
+        }
+        .map-item {
+            background: #111a26;
+            border: 1px solid #29364b;
+            border-radius: 60px;
+            padding: 8px 12px 8px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: 0.1s;
+        }
+        .map-item.active {
+            border-color: #5b8cff;
+            background: #18243b;
+            box-shadow: 0 0 0 1px #3f6bdd;
+        }
+        .map-name {
+            font-weight: 500;
+            font-size: 0.95rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 120px;
+        }
+        .map-actions {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .map-actions button {
+            background: #253141;
+            border: none;
+            color: #bcc9e0;
+            border-radius: 30px;
+            width: 28px;
+            height: 28px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.1s;
+            border: 1px solid #31415a;
+        }
+        .map-actions button:hover {
+            background: #364b68;
+            color: white;
+        }
+        .map-actions .set-active-btn {
+            background: #1f8b4c;
+            border-color: #2eaa5e;
+            color: white;
+            font-size: 0.7rem;
+            width: auto;
+            padding: 0 10px;
+            font-weight: 600;
+        }
+        .map-actions .set-active-btn:hover {
+            background: #2aa35a;
+        }
+        .map-actions .set-active-btn.active-btn {
+            background: #5b7cfa;
+            border-color: #7b94fa;
+        }
+        .status-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: #0f1621;
+            padding: 14px 20px;
+            border-radius: 60px;
+            margin: 12px 0 4px;
+            border: 1px solid #29364b;
+        }
+        .live-info {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        .live-badge {
+            background: #1f8b4c;
+            border-radius: 40px;
+            padding: 5px 18px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .live-badge span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #9affb0;
+            border-radius: 50%;
+            margin-right: 4px;
+            animation: pulse 1.6s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+        .timer-digits {
+            font-size: 2.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            background: #0c131f;
+            padding: 0 18px;
+            border-radius: 60px;
+            font-variant-numeric: tabular-nums;
+            min-width: 130px;
+            text-align: center;
+            color: #b8d0ff;
+        }
+        .overlay-url-box {
+            background: #0f1621;
+            padding: 16px 22px;
+            border-radius: 60px;
+            border: 1px solid #33415c;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .overlay-url {
+            background: #1d273a;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            letter-spacing: 0.3px;
+            color: #b3ceff;
+            border: 1px solid #3f5270;
+            cursor: pointer;
+            user-select: all;
+            word-break: break-all;
+            max-width: 500px;
+        }
+        .footer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            justify-content: space-between;
+        }
+        .add-map-area {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .add-map-area input {
+            background: #10161f;
+            border: 1px solid #2d3a4f;
+            color: #f0f4fc;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            width: 170px;
+        }
+        .add-map-area input:focus {
+            outline: none;
+            border-color: #5b7cfa;
+        }
+        .small-note {
+            color: #7a8aa8;
+            font-size: 0.8rem;
+            margin: 0;
+        }
+        .overlay-preview {
+            background: rgba(0, 0, 0, 0);
+            border: none;
+            border-radius: 16px;
+            padding: 16px 24px;
+            margin-top: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            transition: all 0.3s ease;
+            width: auto;
+        }
+        .overlay-preview.no-border {
+            border: none !important;
+        }
+        .preview-map {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        .preview-timer {
+            font-size: 2rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .badge-live {
+            background: #1f8b4c;
+            padding: 4px 16px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            margin: 8px 0;
+        }
+        .style-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #0f1621;
+            padding: 8px 16px;
+            border-radius: 40px;
+            border: 1px solid #29364b;
+            flex-wrap: wrap;
+        }
+        .style-item label {
+            color: #a4b3ce;
+            font-size: 0.85rem;
+            min-width: 60px;
+        }
+        .style-item label.small {
+            min-width: 40px;
+        }
+        .style-item .range-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .style-item .range-group input[type="range"] {
+            flex: 1;
+            min-width: 60px;
+        }
+        .style-item .range-group span {
+            color: #7a8aa8;
+            font-size: 0.85rem;
+            min-width: 35px;
+            text-align: right;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #7a8aa8;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status-dot.running { background: #4caf50; }
+        .status-dot.paused { background: #ff9800; }
+        .status-dot.stopped { background: #666; }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .checkbox-group label {
+            color: #a4b3ce;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .preview-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .overlay-preview-card .overlay-preview-wrap {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+        @media (max-width: 700px) {
+            .card { padding: 16px; }
+            .map-grid { grid-template-columns: 1fr 1fr; }
+            .timer-digits { font-size: 1.8rem; min-width: 100px; }
+            .overlay-url { max-width: 200px; font-size: 0.7rem; }
+            .style-grid { grid-template-columns: 1fr 1fr; }
+            .style-item { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+<div class="app" id="app">
+    <!-- Title + Overlay URL -->
+    <div class="card overlay-url-card" style="padding-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <h1>🗺️ Map Rotation <small>OBS overlay ready</small></h1>
+            <div class="overlay-url-box">
+                <span style="color:#a0b3d5;">🔗 OBS overlay URL</span>
+                <span class="overlay-url" id="overlayUrl" title="click to copy">loading...</span>
+                <button class="btn btn-sm btn-success" id="copyOverlayBtn">📋 copy</button>
+                <button class="btn btn-sm btn-outline" id="openOverlayBtn">👁️ preview</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timer + Live status (controls) -->
+    <div class="card controls-card" style="padding: 14px 22px;">
+        <div class="status-bar">
+            <div class="live-info">
+                <div class="live-badge"><span></span> LIVE</div>
+                <span id="currentLiveMap" style="font-weight: 500; font-size: 1.2rem; min-width: 100px;">—</span>
+                <span style="color:#7d8fb0; margin-left: 4px;">⌛</span>
+                <span class="timer-digits" id="timerDisplay">00:00</span>
+            </div>
+            <div class="flex-row" style="gap: 8px;">
+                <div class="input-group">
+                    <label>⏱️ duration (min:sec)</label>
+                    <input type="number" id="timerMinutes" value="2" min="0" max="99" style="width: 60px;" placeholder="min">
+                    <span style="color:#7d8fb0;">:</span>
+                    <input type="number" id="timerSeconds" value="0" min="0" max="59" style="width: 60px;" placeholder="sec">
+                    <button class="btn btn-sm btn-primary" id="applyDurationBtn">apply</button>
+                </div>
+                <button class="btn btn-primary" id="startBtn">▶ Start</button>
+                <button class="btn btn-outline" id="pauseBtn">⏸️ Pause</button>
+                <button class="btn btn-outline" id="resetBtn">↺ Reset</button>
+            </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 12px;">
+            <div class="input-group">
+                <label>⏳ time left</label>
+                <input type="number" id="timeLeftMinutes" value="0" min="0" max="99" style="width: 60px;" placeholder="min">
+                <span style="color:#7d8fb0;">:</span>
+                <input type="number" id="timeLeftSeconds" value="0" min="0" max="59" style="width: 60px;" placeholder="sec">
+                <button class="btn btn-sm btn-primary" id="setTimeLeftBtn">set</button>
+                <span style="color:#7a8aa8; font-size:0.85rem; margin-left: 6px;">(current map)</span>
+            </div>
+            <div style="flex:1; min-width:80px;"></div>
+            <div class="status-indicator">
+                <span class="status-dot stopped" id="statusDot"></span>
+                <span id="statusText">Stopped</span>
+            </div>
+            <button class="btn btn-sm btn-danger" id="resetAllMapsBtn" style="padding: 6px 18px;">🗑️ reset maps</button>
+        </div>
+    </div>
+
+    <!-- Style Customization -->
+    <div class="card style-card">
+        <div class="card-header">
+            <h2>🎨 Overlay Style</h2>
+            <span class="small-note">changes auto-save & apply to OBS overlay</span>
+        </div>
+        <div class="style-grid">
+            <div class="style-item">
+                <label>Font</label>
+                <select id="fontSelect">
+                    <option value="system-ui">System</option>
+                    <option value="Arial">Arial</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="'Courier New'">Courier New</option>
+                    <option value="Impact">Impact</option>
+                    <option value="'Comic Sans MS'">Comic Sans</option>
+                </select>
+            </div>
+            <div class="style-item">
+                <label>BG Color</label>
+                <input type="color" id="bgColor" value="#000000">
+                <div class="range-group">
+                    <label class="small">opacity</label>
+                    <input type="range" id="bgOpacity" min="0" max="100" value="0">
+                    <span id="opacityLabel">0%</span>
+                </div>
+            </div>
+            <div class="style-item">
+                <label>Text Color</label>
+                <input type="color" id="textColor" value="#ffffff">
+            </div>
+            <div class="style-item">
+                <label>Timer Color</label>
+                <input type="color" id="timerColor" value="#7bb3ff">
+            </div>
+            <div class="style-item">
+                <label>Border</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showBorder" checked>
+                    <label for="showBorder" class="small">Show</label>
+                    <input type="color" id="borderColor" value="#2a3a55" style="width:40px; height:30px;">
+                    <label style="min-width:auto; font-size:0.8rem; color:#7a8aa8;">width</label>
+                    <input type="number" id="borderWidth" value="2" min="1" max="10" style="width:50px;">
+                </div>
+            </div>
+            <div class="style-item">
+                <label>LIVE Badge</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showBadge" checked>
+                    <label for="showBadge" class="small">Show</label>
+                </div>
+            </div>
+            <div class="style-item">
+                <label>Badge Text</label>
+                <input type="text" id="badgeText" value="● LIVE" style="width:100px; font-size:0.85rem;">
+            </div>
+            <div class="style-item">
+                <label>Badge Color</label>
+                <input type="color" id="badgeColor" value="#1f8b4c">
+            </div>
+            <div class="style-item">
+                <label>Badge Text Color</label>
+                <input type="color" id="badgeTextColor" value="#ffffff">
+            </div>
+            <div class="style-item" style="grid-column: span 2;">
+                <button class="btn btn-sm btn-outline" id="resetStyleBtn">↺ Reset to default</button>
+                <button class="btn btn-sm btn-primary" id="applyStyleBtn">Apply Style</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maps list -->
+    <div class="card maps-card">
+        <div class="card-header">
+            <h2>📋 maps in rotation</h2>
+            <div class="add-map-area">
+                <input type="text" id="newMapInput" placeholder="map name" value="Verdansk">
+                <button class="btn btn-primary btn-sm" id="addMapBtn">➕ Add</button>
+                <button class="btn btn-outline btn-sm" id="loadDefaultMapsBtn">↺ load defaults</button>
+            </div>
+        </div>
+        <div class="map-grid" id="mapGrid"></div>
+        <div class="footer-actions">
+            <span class="small-note" id="mapCountLabel">0 maps</span>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-sm btn-outline" id="nextMapBtn">⏩ Next map</button>
+                <button class="btn btn-sm btn-outline" id="prevMapBtn">⏪ Previous</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay preview -->
+    <div class="card overlay-preview-card">
+        <div class="preview-label">
+            <span style="font-weight: 500; color: #a4b8dd;">🖥️ Overlay preview (what OBS will show)</span>
+            <span class="small-note">background & border visible in OBS</span>
+        </div>
+        <div class="overlay-preview-wrap">
+            <div class="overlay-preview" id="overlayPreview">
+                <span class="badge-live" id="previewBadge">● LIVE</span>
+                <span class="preview-map" id="previewMapName">No map</span>
+                <span class="preview-timer" id="previewTimer">00:00</span>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    (function() {
+        // ----- state -----
+        let maps = [];
+        let currentIndex = 0;
+        let timerSeconds = 120;
+        let remainingSeconds = 0;
+        let timerInterval = null;
+        let isPaused = false;
+        let isRunning = false;
+
+        // Style state with defaults
+        let style = {
+            font: 'system-ui',
+            bgColor: '#000000',
+            bgOpacity: 0,
+            textColor: '#ffffff',
+            timerColor: '#7bb3ff',
+            borderColor: '#2a3a55',
+            borderWidth: 2,
+            showBorder: true,
+            showBadge: true,
+            badgeText: '● LIVE',
+            badgeColor: '#1f8b4c',
+            badgeTextColor: '#ffffff'
+        };
+
+        const STORAGE_KEY = 'mapRotationData';
+        const DEFAULT_MAPS = ['Verdansk', 'Avalon'];
+
+        // DOM refs
+        const mapGrid = document.getElementById('mapGrid');
+        const currentLiveMapEl = document.getElementById('currentLiveMap');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerMinutes = document.getElementById('timerMinutes');
+        const timerSecondsInput = document.getElementById('timerSeconds');
+        const timeLeftMinutes = document.getElementById('timeLeftMinutes');
+        const timeLeftSeconds = document.getElementById('timeLeftSeconds');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const applyDurationBtn = document.getElementById('applyDurationBtn');
+        const addMapBtn = document.getElementById('addMapBtn');
+        const newMapInput = document.getElementById('newMapInput');
+        const loadDefaultMapsBtn = document.getElementById('loadDefaultMapsBtn');
+        const nextMapBtn = document.getElementById('nextMapBtn');
+        const prevMapBtn = document.getElementById('prevMapBtn');
+        const resetAllMapsBtn = document.getElementById('resetAllMapsBtn');
+        const setTimeLeftBtn = document.getElementById('setTimeLeftBtn');
+        const mapCountLabel = document.getElementById('mapCountLabel');
+        const overlayUrl = document.getElementById('overlayUrl');
+        const copyOverlayBtn = document.getElementById('copyOverlayBtn');
+        const openOverlayBtn = document.getElementById('openOverlayBtn');
+        const previewMapName = document.getElementById('previewMapName');
+        const previewTimer = document.getElementById('previewTimer');
+        const previewBadge = document.getElementById('previewBadge');
+        const overlayPreview = document.getElementById('overlayPreview');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        // Style inputs
+        const fontSelect = document.getElementById('fontSelect');
+        const bgColor = document.getElementById('bgColor');
+        const bgOpacity = document.getElementById('bgOpacity');
+        const opacityLabel = document.getElementById('opacityLabel');
+        const textColor = document.getElementById('textColor');
+        const timerColor = document.getElementById('timerColor');
+        const borderColor = document.getElementById('borderColor');
+        const borderWidth = document.getElementById('borderWidth');
+        const showBorder = document.getElementById('showBorder');
+        const showBadge = document.getElementById('showBadge');
+        const badgeText = document.getElementById('badgeText');
+        const badgeColor = document.getElementById('badgeColor');
+        const badgeTextColor = document.getElementById('badgeTextColor');
+        const resetStyleBtn = document.getElementById('resetStyleBtn');
+        const applyStyleBtn = document.getElementById('applyStyleBtn');
+
+        // ----- Save/Load -----
+        function saveState() {
+            try {
+                const data = {
+                    maps: maps,
+                    currentIndex: currentIndex,
+                    timerSeconds: timerSeconds,
+                    remainingSeconds: remainingSeconds,
+                    isRunning: isRunning,
+                    isPaused: isPaused,
+                    style: style
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) {
+                // Silent fail
+            }
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return false;
+                const data = JSON.parse(raw);
+                if (data.maps && data.maps.length > 0) {
+                    maps = data.maps;
+                    currentIndex = data.currentIndex || 0;
+                    timerSeconds = data.timerSeconds || 120;
+                    remainingSeconds = data.remainingSeconds || timerSeconds;
+                    isRunning = data.isRunning || false;
+                    isPaused = data.isPaused || false;
+                    if (data.style) {
+                        style = { ...style, ...data.style };
+                    }
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // Apply loaded style to UI inputs
+        function applyStyleToInputs() {
+            fontSelect.value = style.font || 'system-ui';
+            bgColor.value = style.bgColor || '#000000';
+            bgOpacity.value = style.bgOpacity !== undefined ? style.bgOpacity : 0;
+            textColor.value = style.textColor || '#ffffff';
+            timerColor.value = style.timerColor || '#7bb3ff';
+            borderColor.value = style.borderColor || '#2a3a55';
+            borderWidth.value = style.borderWidth || 2;
+            showBorder.checked = style.showBorder !== undefined ? style.showBorder : true;
+            showBadge.checked = style.showBadge !== undefined ? style.showBadge : true;
+            badgeText.value = style.badgeText || '● LIVE';
+            badgeColor.value = style.badgeColor || '#1f8b4c';
+            badgeTextColor.value = style.badgeTextColor || '#ffffff';
+            const opacityVal = style.bgOpacity !== undefined ? style.bgOpacity : 0;
+            opacityLabel.textContent = opacityVal + '%';
+        }
+
+        // ----- helpers -----
+        function formatTime(sec) {
+            if (sec < 0) sec = 0;
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            const formatted = formatTime(remainingSeconds);
+            timerDisplay.textContent = formatted;
+            previewTimer.textContent = formatted;
+        }
+
+        function updateDurationInputs() {
+            const m = Math.floor(timerSeconds / 60);
+            const s = timerSeconds % 60;
+            timerMinutes.value = m;
+            timerSecondsInput.value = s;
+        }
+
+        function updateTimeLeftInputs() {
+            const m = Math.floor(remainingSeconds / 60);
+            const s = remainingSeconds % 60;
+            timeLeftMinutes.value = m;
+            timeLeftSeconds.value = s;
+        }
+
+        function getDurationFromInputs() {
+            const m = parseInt(timerMinutes.value, 10) || 0;
+            const s = parseInt(timerSecondsInput.value, 10) || 0;
+            return Math.max(0, m * 60 + s);
+        }
+
+        function getTimeLeftFromInputs() {
+            const m = parseInt(timeLeftMinutes.value, 10) || 0;
+            const s = parseInt(timeLeftSeconds.value, 10) || 0;
+            return Math.max(0, m * 60 + s);
+        }
+
+        function updateStatus() {
+            if (isRunning) {
+                if (isPaused) {
+                    statusDot.className = 'status-dot paused';
+                    statusText.textContent = 'Paused';
+                } else {
+                    statusDot.className = 'status-dot running';
+                    statusText.textContent = 'Running';
+                }
+            } else {
+                statusDot.className = 'status-dot stopped';
+                statusText.textContent = 'Stopped';
+            }
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0, 0, 0';
+        }
+
+        // Apply style to preview
+        function applyStyle() {
+            const font = style.font || 'system-ui';
+            const bg = style.bgColor || '#000000';
+            const opacity = (style.bgOpacity !== undefined ? style.bgOpacity : 0) / 100;
+            const text = style.textColor || '#ffffff';
+            const timer = style.timerColor || '#7bb3ff';
+            const border = style.borderColor || '#2a3a55';
+            const borderW = style.borderWidth || 2;
+            const showBorderFlag = style.showBorder !== undefined ? style.showBorder : true;
+            const showBadgeFlag = style.showBadge !== undefined ? style.showBadge : true;
+            const badgeTextContent = style.badgeText || '● LIVE';
+            const badgeBg = style.badgeColor || '#1f8b4c';
+            const badgeTextColorStyle = style.badgeTextColor || '#ffffff';
+
+            // Apply font to ALL elements
+            overlayPreview.style.fontFamily = font;
+            previewMapName.style.fontFamily = font;
+            previewTimer.style.fontFamily = font;
+            previewBadge.style.fontFamily = font;
+            overlayPreview.style.setProperty('font-family', font);
+            
+            // Background
+            const bgRgb = hexToRgb(bg);
+            if (opacity === 0) {
+                overlayPreview.style.background = 'transparent';
+                overlayPreview.style.backgroundColor = 'transparent';
+            } else {
+                overlayPreview.style.background = `rgba(${bgRgb}, ${opacity})`;
+                overlayPreview.style.backgroundColor = `rgba(${bgRgb}, ${opacity})`;
+            }
+            
+            // Border
+            if (showBorderFlag) {
+                overlayPreview.style.border = `${borderW}px solid ${border}`;
+                overlayPreview.style.borderRadius = '16px';
+                overlayPreview.style.padding = '12px 24px';
+            } else {
+                overlayPreview.style.border = 'none';
+                overlayPreview.style.borderRadius = '0';
+                overlayPreview.style.padding = '0';
+            }
+            
+            // Text color for map name
+            overlayPreview.style.color = text;
+            previewMapName.style.color = text;
+            
+            // Timer color
+            previewTimer.style.color = timer;
+
+            // Badge
+            if (previewBadge) {
+                if (showBadgeFlag) {
+                    previewBadge.style.display = 'inline-block';
+                    previewBadge.textContent = badgeTextContent;
+                    previewBadge.style.background = badgeBg;
+                    previewBadge.style.color = badgeTextColorStyle;
+                    previewBadge.style.padding = '4px 16px';
+                    previewBadge.style.borderRadius = '40px';
+                    previewBadge.style.fontFamily = font;
+                } else {
+                    previewBadge.style.display = 'none';
+                }
+            }
+
+            // Also update main display
+            currentLiveMapEl.style.color = text;
+            currentLiveMapEl.style.fontFamily = font;
+            timerDisplay.style.color = timer;
+            timerDisplay.style.fontFamily = font;
+
+            updateOverlayUrl();
+            saveState();
+        }
+
+        function loadStyleFromInputs() {
+            style.font = fontSelect.value;
+            style.bgColor = bgColor.value;
+            style.bgOpacity = parseInt(bgOpacity.value, 10);
+            style.textColor = textColor.value;
+            style.timerColor = timerColor.value;
+            style.borderColor = borderColor.value;
+            style.borderWidth = parseInt(borderWidth.value, 10) || 2;
+            style.showBorder = showBorder.checked;
+            style.showBadge = showBadge.checked;
+            style.badgeText = badgeText.value;
+            style.badgeColor = badgeColor.value;
+            style.badgeTextColor = badgeTextColor.value;
+            opacityLabel.textContent = style.bgOpacity + '%';
+            applyStyle();
+            saveState();
+        }
+
+        function resetStyleToDefault() {
+            style.font = 'system-ui';
+            style.bgColor = '#000000';
+            style.bgOpacity = 0;
+            style.textColor = '#ffffff';
+            style.timerColor = '#7bb3ff';
+            style.borderColor = '#2a3a55';
+            style.borderWidth = 2;
+            style.showBorder = true;
+            style.showBadge = true;
+            style.badgeText = '● LIVE';
+            style.badgeColor = '#1f8b4c';
+            style.badgeTextColor = '#ffffff';
+            
+            applyStyleToInputs();
+            applyStyle();
+            saveState();
+        }
+
+        function generateOverlayUrl() {
+            const mapData = maps.join(',');
+            const params = new URLSearchParams();
+            params.set('maps', mapData);
+            params.set('current', currentIndex);
+            params.set('remaining', remainingSeconds);
+            params.set('duration', timerSeconds);
+            params.set('running', isRunning ? '1' : '0');
+            params.set('paused', isPaused ? '1' : '0');
+            params.set('overlay', '1');
+            params.set('font', style.font);
+            params.set('bg', style.bgColor);
+            params.set('bgo', style.bgOpacity);
+            params.set('text', style.textColor);
+            params.set('timer', style.timerColor);
+            params.set('border', style.borderColor);
+            params.set('borderW', style.borderWidth);
+            params.set('showBorder', style.showBorder ? '1' : '0');
+            params.set('showBadge', style.showBadge ? '1' : '0');
+            params.set('badgeText', style.badgeText);
+            params.set('badgeColor', style.badgeColor);
+            params.set('badgeTextColor', style.badgeTextColor);
+
+            const url = new URL(window.location.href);
+            url.search = params.toString();
+            return url.toString();
+        }
+
+        function updateOverlayUrl() {
+            overlayUrl.textContent = generateOverlayUrl();
+        }
+
+        function updatePreview() {
+            const mapName = maps.length > 0 ? maps[currentIndex] : 'No map';
+            previewMapName.textContent = mapName;
+            currentLiveMapEl.textContent = mapName;
+            updateTimerDisplay();
+            updateStatus();
+            applyStyle();
+        }
+
+        // Set active map function
+        function setActiveMap(index) {
+            if (index >= 0 && index < maps.length) {
+                currentIndex = index;
+                renderMaps();
+                updatePreview();
+                updateOverlayUrl();
+                saveState();
+                // If timer is running, keep it running
+                if (isRunning) {
+                    // Don't restart, just update display
+                }
+            }
+        }
+
+        function renderMaps() {
+            mapGrid.innerHTML = '';
+            if (maps.length === 0) {
+                mapGrid.innerHTML = '<div style="grid-column:1/-1; color:#6a7d9b; padding:12px; text-align:center;">No maps — add some or load defaults</div>';
+                mapCountLabel.textContent = '0 maps';
+                updatePreview();
+                updateOverlayUrl();
+                return;
+            }
+            maps.forEach((name, idx) => {
+                const div = document.createElement('div');
+                div.className = `map-item ${idx === currentIndex ? 'active' : ''}`;
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'map-name';
+                nameSpan.textContent = name;
+                const actions = document.createElement('div');
+                actions.className = 'map-actions';
+                
+                // Set Active button
+                const setActiveBtn = document.createElement('button');
+                setActiveBtn.className = 'set-active-btn';
+                setActiveBtn.textContent = idx === currentIndex ? '✓ LIVE' : 'Set Active';
+                setActiveBtn.title = 'Make this the current live map';
+                setActiveBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setActiveMap(idx);
+                });
+                actions.appendChild(setActiveBtn);
+                
+                const upBtn = document.createElement('button');
+                upBtn.textContent = '↑';
+                upBtn.title = 'move up';
+                upBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (idx > 0) {
+                        [maps[idx], maps[idx-1]] = [maps[idx-1], maps[idx]];
+                        if (currentIndex === idx) currentIndex = idx-1;
+                        else if (currentIndex === idx-1) currentIndex = idx;
+                        renderMaps();
+                        updateOverlayUrl();
+                        updatePreview();
+                        saveState();
+                    }
+                });
+                const downBtn = document.createElement('button');
+                downBtn.textContent = '↓';
+                downBtn.title = 'move down';
+                downBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (idx < maps.length-1) {
+                        [maps[idx], maps[idx+1]] = [maps[idx+1], maps[idx]];
+                        if (currentIndex === idx) currentIndex = idx+1;
+                        else if (currentIndex === idx+1) currentIndex = idx;
+                        renderMaps();
+                        updateOverlayUrl();
+                        updatePreview();
+                        saveState();
+                    }
+                });
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = '✕';
+                removeBtn.title = 'remove map';
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (maps.length <= 1) {
+                        alert('Need at least one map.');
+                        return;
+                    }
+                    maps.splice(idx, 1);
+                    if (currentIndex >= maps.length) currentIndex = maps.length - 1;
+                    if (currentIndex === idx && idx === maps.length) currentIndex = 0;
+                    renderMaps();
+                    updateOverlayUrl();
+                    updatePreview();
+                    saveState();
+                });
+                actions.appendChild(upBtn);
+                actions.appendChild(downBtn);
+                actions.appendChild(removeBtn);
+                div.appendChild(nameSpan);
+                div.appendChild(actions);
+                mapGrid.appendChild(div);
+            });
+            mapCountLabel.textContent = `${maps.length} maps`;
+            updateOverlayUrl();
+            updatePreview();
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            isRunning = false;
+            isPaused = false;
+            pauseBtn.textContent = '⏸️ Pause';
+            updateOverlayUrl();
+            updateStatus();
+            saveState();
+        }
+
+        function startCountdown() {
+            if (maps.length === 0) {
+                alert('Add at least one map first.');
+                return;
+            }
+            if (remainingSeconds <= 0) {
+                remainingSeconds = timerSeconds;
+                if (remainingSeconds <= 0) remainingSeconds = 60;
+            }
+            stopTimer();
+            isRunning = true;
+            isPaused = false;
+            pauseBtn.textContent = '⏸️ Pause';
+            timerInterval = setInterval(() => {
+                if (isPaused) return;
+                remainingSeconds--;
+                if (remainingSeconds <= 0) {
+                    remainingSeconds = timerSeconds;
+                    if (maps.length > 0) {
+                        currentIndex = (currentIndex + 1) % maps.length;
+                        renderMaps();
+                        updatePreview();
+                    } else {
+                        stopTimer();
+                    }
+                }
+                updateTimerDisplay();
+                updateTimeLeftInputs();
+                updateOverlayUrl();
+                updatePreview();
+                saveState();
+            }, 1000);
+            updateTimerDisplay();
+            updateTimeLeftInputs();
+            updatePreview();
+            updateOverlayUrl();
+            updateStatus();
+            saveState();
+        }
+
+        function resetTimerFull() {
+            stopTimer();
+            remainingSeconds = timerSeconds;
+            isPaused = false;
+            isRunning = false;
+            pauseBtn.textContent = '⏸️ Pause';
+            updateTimerDisplay();
+            updateTimeLeftInputs();
+            updatePreview();
+            updateOverlayUrl();
+            updateStatus();
+            saveState();
+        }
+
+        function checkOverlayMode() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('overlay')) {
+                document.body.classList.add('overlay-mode');
+
+                // Load all style params from URL
+                if (params.has('font')) style.font = params.get('font');
+                if (params.has('bg')) style.bgColor = params.get('bg');
+                if (params.has('bgo')) style.bgOpacity = parseInt(params.get('bgo')) || 0;
+                if (params.has('text')) style.textColor = params.get('text');
+                if (params.has('timer')) style.timerColor = params.get('timer');
+                if (params.has('border')) style.borderColor = params.get('border');
+                if (params.has('borderW')) style.borderWidth = parseInt(params.get('borderW')) || 2;
+                if (params.has('showBorder')) style.showBorder = params.get('showBorder') === '1';
+                if (params.has('showBadge')) style.showBadge = params.get('showBadge') === '1';
+                if (params.has('badgeText')) style.badgeText = params.get('badgeText');
+                if (params.has('badgeColor')) style.badgeColor = params.get('badgeColor');
+                if (params.has('badgeTextColor')) style.badgeTextColor = params.get('badgeTextColor');
+
+                // Apply loaded style to inputs
+                applyStyleToInputs();
+
+                // Load map data
+                const mapData = params.get('maps');
+                if (mapData && mapData.trim() !== '') {
+                    maps = mapData.split(',').filter(m => m.trim() !== '');
+                }
+                const current = parseInt(params.get('current'));
+                if (!isNaN(current) && current >= 0 && current < maps.length) {
+                    currentIndex = current;
+                }
+                const remaining = parseInt(params.get('remaining'));
+                if (!isNaN(remaining) && remaining >= 0) {
+                    remainingSeconds = remaining;
+                } else {
+                    remainingSeconds = timerSeconds;
+                }
+                const duration = parseInt(params.get('duration'));
+                if (!isNaN(duration) && duration > 0) {
+                    timerSeconds = duration;
+                }
+                
+                renderMaps();
+                updateDurationInputs();
+                updateTimeLeftInputs();
+                updateTimerDisplay();
+                updatePreview();
+                updateOverlayUrl();
+                applyStyle();
+
+                // CRITICAL FIX: Always start the timer when in overlay mode
+                const running = params.get('running') === '1';
+                if (running) {
+                    isRunning = true;
+                    isPaused = false;
+                    // Start the timer immediately
+                    startCountdown();
+                } else {
+                    // If running=0 or not set, still start the timer
+                    // This ensures OBS overlay always runs
+                    if (remainingSeconds <= 0) {
+                        remainingSeconds = timerSeconds;
+                    }
+                    isRunning = true;
+                    isPaused = false;
+                    startCountdown();
+                }
+
+                // Hide all extra UI
+                document.querySelectorAll('.controls-card, .maps-card, .overlay-url-card, .style-card, .preview-label').forEach(el => {
+                    if (el) el.style.display = 'none';
+                });
+                
+                const previewCard = document.querySelector('.overlay-preview-card');
+                if (previewCard) {
+                    previewCard.style.margin = '0';
+                    previewCard.style.padding = '0';
+                    previewCard.style.background = 'transparent';
+                    previewCard.style.border = 'none';
+                    previewCard.style.boxShadow = 'none';
+                    previewCard.style.display = 'block !important';
+                }
+                
+                const previewContainer = document.querySelector('.overlay-preview');
+                if (previewContainer) {
+                    previewContainer.style.display = 'inline-flex !important';
+                }
+                
+                const app = document.querySelector('.app');
+                if (app) app.style.gap = '0';
+            }
+        }
+
+        function initEvents() {
+            applyDurationBtn.addEventListener('click', () => {
+                const total = getDurationFromInputs();
+                if (total > 0) {
+                    timerSeconds = total;
+                    if (!isRunning) {
+                        if (remainingSeconds > timerSeconds) {
+                            remainingSeconds = timerSeconds;
+                        }
+                        updateTimerDisplay();
+                        updateTimeLeftInputs();
+                    } else {
+                        if (remainingSeconds > timerSeconds) {
+                            remainingSeconds = timerSeconds;
+                            updateTimerDisplay();
+                            updateTimeLeftInputs();
+                        }
+                    }
+                    updateOverlayUrl();
+                    saveState();
+                } else {
+                    alert('Duration must be > 0 seconds.');
+                }
+            });
+
+            startBtn.addEventListener('click', () => {
+                const total = getDurationFromInputs();
+                if (total > 0) timerSeconds = total;
+                if (remainingSeconds <= 0 || remainingSeconds > timerSeconds) {
+                    remainingSeconds = timerSeconds;
+                }
+                if (!isRunning) {
+                    startCountdown();
+                } else {
+                    if (isPaused) {
+                        isPaused = false;
+                        pauseBtn.textContent = '⏸️ Pause';
+                        updateOverlayUrl();
+                        updateStatus();
+                        saveState();
+                    } else {
+                        stopTimer();
+                        startCountdown();
+                    }
+                }
+            });
+
+            pauseBtn.addEventListener('click', () => {
+                if (isRunning) {
+                    isPaused = !isPaused;
+                    pauseBtn.textContent = isPaused ? '▶️ Resume' : '⏸️ Pause';
+                    updateOverlayUrl();
+                    updateStatus();
+                    saveState();
+                }
+            });
+
+            resetBtn.addEventListener('click', () => {
+                stopTimer();
+                remainingSeconds = timerSeconds;
+                isPaused = false;
+                isRunning = false;
+                pauseBtn.textContent = '⏸️ Pause';
+                updateTimerDisplay();
+                updateTimeLeftInputs();
+                updatePreview();
+                updateOverlayUrl();
+                updateStatus();
+                saveState();
+            });
+
+            setTimeLeftBtn.addEventListener('click', () => {
+                const val = getTimeLeftFromInputs();
+                if (val >= 0) {
+                    remainingSeconds = Math.min(val, timerSeconds);
+                    if (remainingSeconds < 0) remainingSeconds = 0;
+                    updateTimerDisplay();
+                    updateTimeLeftInputs();
+                    updatePreview();
+                    updateOverlayUrl();
+                    saveState();
+                }
+            });
+
+            addMapBtn.addEventListener('click', () => {
+                const name = newMapInput.value.trim();
+                if (!name) { alert('Enter a map name.'); return; }
+                if (maps.includes(name)) { alert('Map already exists.'); return; }
+                maps.push(name);
+                renderMaps();
+                updatePreview();
+                newMapInput.value = '';
+                newMapInput.focus();
+                updateOverlayUrl();
+                saveState();
+            });
+
+            loadDefaultMapsBtn.addEventListener('click', () => {
+                if (maps.length > 0 && !confirm('This will replace your current maps. Continue?')) return;
+                maps = [...DEFAULT_MAPS];
+                currentIndex = 0;
+                renderMaps();
+                updatePreview();
+                resetTimerFull();
+                stopTimer();
+                remainingSeconds = timerSeconds;
+                updateTimerDisplay();
+                updateTimeLeftInputs();
+                updateOverlayUrl();
+                saveState();
+            });
+
+            nextMapBtn.addEventListener('click', () => {
+                if (maps.length === 0) return;
+                currentIndex = (currentIndex + 1) % maps.length;
+                renderMaps();
+                updatePreview();
+                resetTimerFull();
+                stopTimer();
+                remainingSeconds = timerSeconds;
+                updateTimerDisplay();
+                updateTimeLeftInputs();
+                updateOverlayUrl();
+                saveState();
+            });
+            prevMapBtn.addEventListener('click', () => {
+                if (maps.length === 0) return;
+                currentIndex = (currentIndex - 1 + maps.length) % maps.length;
+                renderMaps();
+                updatePreview();
+                resetTimerFull();
+                stopTimer();
+                remainingSeconds = timerSeconds;
+                updateTimerDisplay();
+                updateTimeLeftInputs();
+                updateOverlayUrl();
+                saveState();
+            });
+
+            resetAllMapsBtn.addEventListener('click', () => {
+                if (confirm('Remove all maps?')) {
+                    maps = [];
+                    currentIndex = 0;
+                    renderMaps();
+                    updatePreview();
+                    stopTimer();
+                    remainingSeconds = 0;
+                    updateTimerDisplay();
+                    updateTimeLeftInputs();
+                    pauseBtn.textContent = '⏸️ Pause';
+                    updateOverlayUrl();
+                    saveState();
+                }
+            });
+
+            copyOverlayBtn.addEventListener('click', () => {
+                const url = overlayUrl.textContent;
+                navigator.clipboard?.writeText(url).then(() => {
+                    alert('Overlay URL copied to clipboard!\n\nPaste this as a Browser Source in OBS.');
+                }).catch(() => {
+                    const range = document.createRange();
+                    range.selectNode(overlayUrl);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                    document.execCommand('copy');
+                    alert('Copied: ' + url);
+                });
+            });
+
+            openOverlayBtn.addEventListener('click', () => {
+                window.open(overlayUrl.textContent, '_blank');
+            });
+
+            // Opacity slider live update
+            bgOpacity.addEventListener('input', function() {
+                opacityLabel.textContent = this.value + '%';
+                loadStyleFromInputs();
+            });
+
+            applyStyleBtn.addEventListener('click', loadStyleFromInputs);
+            resetStyleBtn.addEventListener('click', resetStyleToDefault);
+
+            // Auto-save on any style change
+            [fontSelect, bgColor, textColor, timerColor, borderColor, borderWidth, showBorder, showBadge, badgeText, badgeColor, badgeTextColor].forEach(el => {
+                el.addEventListener('change', loadStyleFromInputs);
+                if (el.type === 'text') {
+                    el.addEventListener('input', loadStyleFromInputs);
+                }
+                if (el.type === 'checkbox') {
+                    el.addEventListener('change', loadStyleFromInputs);
+                }
+                if (el.type === 'number') {
+                    el.addEventListener('input', loadStyleFromInputs);
+                }
+            });
+
+            // Initialize - load saved state or defaults
+            if (!loadState()) {
+                maps = [...DEFAULT_MAPS];
+                currentIndex = 0;
+                timerSeconds = 120;
+                remainingSeconds = 120;
+                style.bgOpacity = 0;
+            }
+
+            // Apply loaded style to UI inputs
+            applyStyleToInputs();
+
+            if (remainingSeconds <= 0) remainingSeconds = timerSeconds;
+            
+            renderMaps();
+            updateDurationInputs();
+            updateTimeLeftInputs();
+            updateTimerDisplay();
+            updateOverlayUrl();
+            applyStyle();
+            updateStatus();
+            
+            if (isRunning) {
+                if (!isPaused) {
+                    startCountdown();
+                }
+            }
+            
+            checkOverlayMode();
+        }
+
+        initEvents();
+    })();
+</script>
+</body>
+</html>
